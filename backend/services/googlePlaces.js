@@ -3,7 +3,7 @@ const axios = require('axios');
 class GooglePlacesAPI {
     constructor() {
         this.apiKey = process.env.GOOGLE_PLACES_API_KEY;
-        this.baseUrl = 'https://maps.googleapis.com/maps/api/place';
+        this.baseUrl = 'https://places.googleapis.com/v1';
         this.lastRequest = 0;
         this.minInterval = 600; // 600ms between reqs
 

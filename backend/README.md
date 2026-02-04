@@ -6,6 +6,7 @@ We implement using TDD, specifically using **Jest** as the main unit test module
 
 [ x ] `distance.js`: Haversine Distance helper function
 [ x ] `scoring.js` : Scoring function based on user preferences and restaurant match
+[ ] `schema.sql` : Schema storing the metadata of restaurants
 
 ## Unit Tests:
 
