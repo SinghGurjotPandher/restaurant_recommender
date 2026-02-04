@@ -8,7 +8,7 @@ class GooglePlacesAPI {
         this.minInterval = 600; // 600ms between reqs
 
         if(!this.apiKey) {
-            throw new Error('Google Places API key is not set in environment variables.');
+            throw new Error('GOOGLE_PLACES_API_KEY environment variable is required');
         }
     }
 
@@ -29,146 +29,63 @@ class GooglePlacesAPI {
         await this.waitForRateLimit();
 
         try {
-            const response = await axios.post(`${this.baseUrl}/places:searchNearby`, {
-                includedTypes: ['restaurant'],
-                maxResultCount: 20,
-                locationRestriction: {
-                    circle: {
-                        center: { latitude: lat, longitude: lng },
-                        radiusInMeters: radius
+            const response = await axios.post(
+                `${this.baseUrl}/places:searchNearby`,
+                {
+                    includedTypes: ['restaurant'],
+                    maxResults: 20,
+                    locationRestriction: {
+                        circle: {
+                            center: { latitude: lat, longitude: lng },
+                            radiusMeters: radius
+                        }
                     }
-                }
-            }, {
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-Goog-Api-Key': this.apiKey,
-                    'X-Goog-FieldMask': [
-                        'places.id',
-                        'places.displayName',
-                        'places.types',
-                        'places.primaryType',
-                        'places.formattedAddress',
-                        'places.location',
-                        'places.rating',
-                        'places.userRatingCount',
-                        'places.priceLevel',
-                        'places.regularOpeningHours',
-                        'places.currentOpeningHours',
-                        'places.websiteUri',
-                        'places.nationalPhoneNumber',
-                        'places.servesVegetarianFood',
-                        'places.servesBeer',
-                        'places.servesWine',
-                        'places.servesCoffee',
-                        'places.servesBreakfast',
-                        'places.servesLunch',
-                        'places.servesDinner',
-                        'places.servesBrunch',
-                        'places.dineIn',
-                        'places.takeout',
-                        'places.delivery',
-                        'places.goodForGroups',
-                        'places.goodForChildren',
-                        'places.menuForChildren',
-                        'places.editorialSummary',
-                        'places.generativeSummary',
-                        'places.reviews'
-                    ].join(',')
                 },
-                timeout: 15000
-            }
+                {
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-Goog-Api-Key': this.apiKey,
+                        'X-Goog-FieldMask': [
+                            'places.id',
+                            'places.displayName',
+                            'places.types',
+                            'places.primaryType',
+                            'places.formattedAddress',
+                            'places.location',
+                            'places.rating',
+                            'places.userRatingCount',
+                            'places.priceLevel',
+                            'places.servesVegetarianFood',
+                            'places.websiteUri'
+                        ].join(','),
+                    },
+                    timeout: 15000
+                }
             );
 
-            if (!response.data.places) {
-                console.log('No places found in nearby search response.');
-                return [];
-            }
-
-            return response.data.places.map(place => this.formatPlace(place));
-
+            return (response.data.places || []).map(place => this.formatPlace(place));
         } catch (error) {
             console.error(`Failed to perform nearby search: ${error.message}`);
             return [];
         }
     }
 
-    // get place details endpoint
-    async getPlaceDetails(placeId) {
-        await this.waitForRateLimit();
-
-        try {
-            const response = await axios.get(`${this.baseUrl}/places/${placeId}`, 
-                {
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'X-Goog-Api-Key': this.apiKey,
-                        'X-Goog-FieldMask': [
-                            'id',
-                            'displayName',
-                            'formattedAddress',
-                            'nationalPhoneNumber',
-                            'websiteUri',
-                            'regularOpeningHours',
-                            'servesVegetarianFood',
-                            'editorialSummary',
-                            'generativeSummary',
-                            'reviews',
-                            'types'
-                        ].join(',')
-                    },
-                    timeout: 15000
-                }
-            );
-
-            return this.formatPlace(response.data);
-
-        } catch (error) {
-            console.error(`Failed to get place details for ${placeId}: ${error.message}`);
-            return null;
-        }
-    }
-            
     // helper to format place data
     formatPlace(place) {
+        const cuisine = this.extractCuisine(place.types || [], place.primaryType);
+
         return {
-            google_place_id: place.id,
+            googlePlaceId: place.id,
             name: place.displayName?.text || 'Unknown',
-            types: place.types || [],
-            primaryType: place.primaryType,
-            cuisine: this.extractCuisine(place.types, place.primaryType),
-            address: place.formattedAddress,
-            phone: place.nationalPhoneNumber,
-            website: place.websiteUri,
+            cuisine: cuisine,
+            address: place.formattedAddress || null,
             latitude: place.location?.latitude,
             longitude: place.location?.longitude,
-            rating: place.rating,
-            userRatingCount: place.userRatingCount,
-            priceLevel: this.formatPriceLevel(place.priceLevel),
-            hours: place.regularOpeningHours,
-            isOpenNow: place.currentOpeningHours?.openNow,
-            
-            // Dietary-related fields
-            servesVegetarianFood: place.servesVegetarianFood,
-            servesBeer: place.servesBeer,
-            servesWine: place.servesWine,
-            servesCoffee: place.servesCoffee,
-            servesBreakfast: place.servesBreakfast,
-            servesLunch: place.servesLunch,
-            servesDinner: place.servesDinner,
-            servesBrunch: place.servesBrunch,
-            
-            // Service options
-            dineIn: place.dineIn,
-            takeout: place.takeout,
-            delivery: place.delivery,
-            goodForGroups: place.goodForGroups,
-            goodForChildren: place.goodForChildren,
-            menuForChildren: place.menuForChildren,
-            
-            // Text content for dietary inference
-            editorialSummary: place.editorialSummary,
-            generativeSummary: place.generativeSummary,
-            reviews: place.reviews?.slice(0, 5) || []   
+            rating: place.rating || null,
+            userRatingCount: place.userRatingCount || null,
+            priceLevel: this.normalizePriceLevel(place.priceLevel),
+            servesVegetarianFood: place.servesVegetarianFood || false,
+            website: place.websiteUri || null
         };
     }
 
@@ -254,7 +171,7 @@ class GooglePlacesAPI {
     }
 
     // helper to format price level
-    formatPriceLevel(priceLevel) {
+    normalizePriceLevel(priceLevel) {
         const mapping = {
             'PRICE_LEVEL_FREE': 0,
             'PRICE_LEVEL_INEXPENSIVE': 1,
@@ -263,7 +180,7 @@ class GooglePlacesAPI {
             'PRICE_LEVEL_VERY_EXPENSIVE': 4
         };
 
-        return mapping[priceLevel] !== undefined ? mapping[priceLevel] : null;
+        return mapping[priceLevel] !== undefined ? mapping[priceLevel] : 'Price level not available';
     }
 }
 

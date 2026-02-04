@@ -1,8 +1,16 @@
 ## TODO List:
 
+Backend:
+
 - [x] Scoring function
 - [ ] Task 2
 - [ ] Task 3
+
+Frontend:
+
+- [ ]
+- [ ]
+- [ ]
 
 ## Contributions (2/3 - 2/17):
 

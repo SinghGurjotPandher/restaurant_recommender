@@ -1,22 +1,24 @@
-CREATE TABLE restaurants (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
+-- stores Google Places API restaurant data
+CREATE TABLE IF NOT EXISTS restaurant_cache (
+    google_place_id TEXT PRIMARY KEY,
     name TEXT NOT NULL,
     cuisine TEXT NOT NULL,
-    price_level INTEGER NOT NULL,
-    rating REAL,
+    address TEXT,
     latitude REAL NOT NULL,
     longitude REAL NOT NULL,
-    address TEXT,
-    phone TEXT,
-    hours TEXT,
-    dietary_options TEXT,  -- ONLY ['vegetarian', 'vegan']
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-);
-
--- cache for API responses
-CREATE TABLE restaurant_cache (
-    place_id TEXT PRIMARY KEY,
-    data TEXT,
-    cached_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    rating REAL,
+    user_ratings_total INTEGER DEFAULT 0,
+    price_level INTEGER DEFAULT NULL,
+    serves_vegetarian_food BOOLEAN DEFAULT FALSE,
+    website TEXT,
+    cached_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     expires_at DATETIME
 );
+
+-- index for location queries
+CREATE INDEX IF NOT EXISTS idx_restaurant_location
+ON restaurant_cache (latitude, longitude);
+
+-- index for dietary preference queries
+CREATE INDEX IF NOT EXISTS idx_restaurant_dietary
+ON restaurant_cache (serves_vegetarian_food, cuisine);

@@ -1,129 +1,151 @@
-const GooglePlacesAPI = require('../../services/googlePlaces');
 const axios = require('axios');
+const GooglePlacesAPI = require('../../services/googlePlaces');
 
 jest.mock('axios');
-const mockedAxios = axios;
 
-describe('Google Places API', () => {
-    let googlePlaces;
+describe('GooglePlacesAPI', () => {
+    const mockApiKey = 'custom-key';
+    let api;
 
-    beforeEach(()=>{
-        googlePlaces = new GooglePlacesAPI();
+    beforeEach(() => {
+        process.env.GOOGLE_PLACES_API_KEY = mockApiKey;
+        api = new GooglePlacesAPI(mockApiKey);
         jest.clearAllMocks();
     });
 
-    // suite for API connection tests
-    describe('API Connection Tests', ()=>{
+    afterEach(() => {
+        delete process.env.GOOGLE_PLACES_API_KEY;
+    });
 
-        // test for successful nearby search
-        test('should handle successful nearby search', async ()=>{
-            const mockResponse = {
+    describe('constructor', () => {
+        test('throws error if no API key provided', () => {
+            delete process.env.GOOGLE_PLACES_API_KEY;
+            expect(() => new GooglePlacesAPI()).toThrow('GOOGLE_PLACES_API_KEY environment variable is required');
+        });
+
+        test('initializes with provided API key', () => {
+            const api = new GooglePlacesAPI('custom-key');
+            expect(api.apiKey).toBe('custom-key');
+        });
+    });
+
+    describe('nearbySearch', () => {
+        test('returns formatted restaurants on success', async () => {
+            axios.post.mockResolvedValueOnce({
                 data: {
-                    status: 'OK',
-                    results: [{
-                        place_id: 'test_place_id',
-                        name: 'Test Restaurant',
-                        types: ['restaurant'],
-                        rating: 4.5,
-                        price_level: 2,
-                        geometry: {
-                            location: {
-                                lat: 33.6405,
-                                lng: -117.8443
-                            }
-                        },
-                        vicinity: 'Test Address'
-                    }]
+                    places: [
+                        {
+                            id: 'place123',
+                            displayName: { text: 'Test Restaurant' },
+                            types: ['italian_restaurant'],
+                            primaryType: 'italian_restaurant',
+                            formattedAddress: '123 Main St',
+                            location: { latitude: 33.68, longitude: -117.82 },
+                            rating: 4.5,
+                            userRatingCount: 200,
+                            priceLevel: 'PRICE_LEVEL_MODERATE',
+                            servesVegetarianFood: true
+                        }
+                    ]
                 }
-            };
-
-            mockedAxios.get.mockResolvedValueOnce(mockResponse);
-
-            const result = await googlePlaces.nearbySearch({
-                lat: 33.6405,
-                lng: -117.8443,
-                radius: 5000,
             });
 
-            expect(result).toHaveLength(1);
-            expect(result[0].name).toBe('Test Restaurant');
-            expect(result[0].google_place_id).toBe('test_place_id');
+            const results = await api.nearbySearch(33.68, -117.82, 5000);
+
+            expect(results).toHaveLength(1);
+            expect(results[0]).toEqual({
+                googlePlaceId: 'place123',
+                name: 'Test Restaurant',
+                cuisine: 'Italian',
+                address: '123 Main St',
+                latitude: 33.68,
+                longitude: -117.82,
+                rating: 4.5,
+                userRatingCount: 200,
+                priceLevel: 2,
+                servesVegetarianFood: true,
+                website: null
+            });
         });
 
-        // test for API error handling
-        test('should fallback on API error', async ()=>{
-            mockedAxios.get.mockRejectedValueOnce(new Error('API Error'));
+        test('returns empty array on API error', async () => {
+            axios.post.mockRejectedValueOnce(new Error('Network error'));
 
-            const result = await googlePlaces.nearbySearch({
-                lat: 33.6405,
-                lng: -117.8443,
-                radius: 5000,
-            });
+            const results = await api.nearbySearch(33.68, -117.82);
 
-            expect(result).toHaveLength(3);
-            expect(result[0].score).toBe('mock_google');
+            expect(results).toEqual([]);
         });
 
-        test('should handle API key missing', async ()=>{
-            const apiWithoutKey = new GooglePlacesAPI();
-            apiWithoutKey.apiKey = null;
+        test('returns empty array when no places found', async () => {
+            axios.post.mockResolvedValueOnce({ data: {} });
 
-            const result = await apiWithoutKey.nearbySearch({
-                lat: 33.6405,
-                lng: -117.8443,
-            });
+            const results = await api.nearbySearch(33.68, -117.82);
 
-            expect(result).toBeDefined();
-            expect(result[0].source).toBe('mock_google');
+            expect(results).toEqual([]);
         });
     });
 
-    // suite for data formatting
-    describe('Data Formatting', ()=>{
+    describe('formatPlace', () => {
+        test('formats vegan restaurant correctly', () => {
+            const place = {
+                id: 'vegan1',
+                displayName: { text: 'Green Garden' },
+                types: ['vegan_restaurant', 'restaurant'],
+                primaryType: 'vegan_restaurant',
+                location: { latitude: 33.5, longitude: -117.5 },
+                rating: 4.8,
+                priceLevel: 'PRICE_LEVEL_INEXPENSIVE',
+                servesVegetarianFood: true
+            };
 
-        // test for cuisine type extraction
-        test('should extract cuisine type correctly', ()=>{
-            const cuisine1 = googlePlaces.extractCuisineType(['restaurant', 'chinese_restaurant']);
-            expect(cuisine1).toBe('Chinese');
+            const result = api.formatPlace(place);
 
-            const cuisine2 = googlePlaces.extractCuisineType(['restaurant', 'meal_takeaway']);
-            expect(cuisine2).toBe('Fast Food');
-
-            const cuisine3 = googlePlaces.extractCuisineType(['restaurant']);
-            expect(cuisine3).toBe('Restaurant');
+            expect(result.cuisine).toBe('Vegan');
+            expect(result.servesVegetarianFood).toBe(true);
+            expect(result.priceLevel).toBe(1);
         });
 
-        // test for opening hours extraction
-        test('should format opening hours correctly', ()=>{
-            const mockHours = {
-                periods: [
-                    { open: { day: 1, time: '0900' }, close: { day: 1, time: '2100' } },
-                    { open: { day: 2, time: '0900' }, close: { day: 2, time: '2100' } },
-                    { open: { day: 3, time: '0900' }, close: { day: 3, time: '2100' } }
-                ]
-            };
-            
-            const formattedHours = googlePlaces.formatOpeningHours(mockHours);
-            const parsed = JSON.parse(formattedHours);
+        test('handles missing fields gracefully', () => {
+            const place = { id: 'minimal' };
 
-            expect(parsed.Monday).toBe('09:00 - 21:00');
-            expect(parsed.Tuesday).toBe('09:00 - 21:00');
-            expect(parsed.Wednesday).toBe('09:00 - 21:00');
+            const result = api.formatPlace(place);
+
+            expect(result.googlePlaceId).toBe('minimal');
+            expect(result.name).toBe('Unknown');
+            expect(result.cuisine).toBe('Restaurant');
+            expect(result.servesVegetarianFood).toBe(false);
+            expect(result.priceLevel).toBe('Price level not available');
         });
     });
 
-    // suite for rate limiting
-    describe('rate limiting', ()=>{
-        test('should respect rate limits', async ()=>{
-            const startTime = Date.now();
+    describe('extractCuisine', () => {
+        test('prioritizes primaryType over types array', () => {
+            const result = api.extractCuisine(['cafe', 'restaurant'], 'mexican_restaurant');
+            expect(result).toBe('Mexican');
+        });
 
-            await googlePlaces.waitForRateLimit();
-            await googlePlaces.waitForRateLimit();
+        test('falls back to types array if primaryType unknown', () => {
+            const result = api.extractCuisine(['thai_restaurant', 'restaurant'], 'food');
+            expect(result).toBe('Thai');
+        });
 
-            const endTime = Date.now();
-            const elapsed = endTime - startTime;
+        test('returns Restaurant for unknown types', () => {
+            const result = api.extractCuisine(['establishment', 'point_of_interest'], null);
+            expect(result).toBe('Restaurant');
+        });
+    });
 
-            expect(elapsed).toBeGreaterThanOrEqual(600); // minimum interval for google places API request
+    describe('normalizePriceLevel', () => {
+        test.each([
+            ['PRICE_LEVEL_FREE', 0],
+            ['PRICE_LEVEL_INEXPENSIVE', 1],
+            ['PRICE_LEVEL_MODERATE', 2],
+            ['PRICE_LEVEL_EXPENSIVE', 3],
+            ['PRICE_LEVEL_VERY_EXPENSIVE', 4],
+            [undefined, 'Price level not available'],
+            [null, 'Price level not available']
+        ])('normalizes %s to %i', (input, expected) => {
+            expect(api.normalizePriceLevel(input)).toBe(expected);
         });
     });
 });

@@ -1,31 +1,34 @@
 # Backend Documentation
 
 We implement using TDD, specifically using **Jest** as the main unit test module.
+That means, for each of the "completed functions" below, its unit test has been successfully ran.
 
 ## Completed Functionality:
 
-[ x ] `distance.js`: Haversine Distance helper function
+[ x ] `distance.js` : Haversine Distance helper function
 [ x ] `scoring.js` : Scoring function based on user preferences and restaurant match
-[ ] `schema.sql` : Schema storing the metadata of restaurants
+[ x ] `googlePlaces.js` : External API call to Google Places API -> populate database
+[ x ] `schema.sql` : Schema storing the cached metadata of restaurants
 
 ## Unit Tests:
 
 - `distance.js`: run using `npx jest tests/utils/distance.test.js`
-- `scoring.js` run using `npx jest tests/services/scoring.test.js`
+- `scoring.js`: run using `npx jest tests/services/scoring.test.js`
+- `googlePlaces.js`: run using `npx jest tests/services/googlePlaces.test.js`
 
 ## Databases:
 
-- `restaurants`: schema found within `data/schema.sql`
-  - id INTEGER PRIMARY KEY AUTOINCREMENT,
+- `restaurant_cache`: stores cached restaurants extracted from Google Places API
+  - google_place_id TEXT PRIMARY KEY,
   - name TEXT NOT NULL,
   - cuisine TEXT NOT NULL,
-  - price_level INTEGER NOT NULL,
-  - rating REAL,
+  - address TEXT,
   - latitude REAL NOT NULL,
   - longitude REAL NOT NULL,
-  - address TEXT,
-  - phone TEXT,
-  - hours TEXT,
-  - dietary_options TEXT, -- e.g. ['vegetarian', 'vegan', 'gluten-free']
-  - allergens TEXT, -- e.g. ['nuts', 'dairy']
-  - created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  - rating REAL,
+  - user_ratings_total INTEGER DEFAULT 0,
+  - price_level INTEGER DEFAULT NULL,
+  - serves_vegetarian_food BOOLEAN DEFAULT FALSE,
+  - website TEXT,
+  - cached_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  - expires_at DATETIME

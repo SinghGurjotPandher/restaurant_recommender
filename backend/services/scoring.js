@@ -71,11 +71,9 @@ function aggregateGroupPreferences(users) {
     for (const user of users) {
         if (user.dietaryRestriction === 'vegan') { // highest restriction
             dietaryRestrictions = 'vegan';
-            console.log('Aggregated dietary restriction: vegan');
             break;
         }
         if (user.dietaryRestriction === 'vegetarian') {
-            console.log('Found vegetarian restriction in user, setting aggregated to vegetarian if not already vegan');
             dietaryRestrictions = 'vegetarian';
         }
     }
