@@ -10,7 +10,7 @@ function calculateScore(restaurant, preferences) {
     total += cuisineScore;
     breakdown.push({ category: 'cuisine', points: cuisineScore });
 
-    // 2. Budget fit (25 pts)
+    // 2. Budget fit (25 pts) (0-4 scale)
     const budgetDifference = Math.abs(restaurant.price_level - preferences.maxBudget);
     const budgetScore = Math.max(0, 25 - (budgetDifference * 10)); // -10 pts for each level difference
     total += budgetScore;
@@ -25,10 +25,10 @@ function calculateScore(restaurant, preferences) {
     );
     const distanceScore = Math.round(25 * Math.exp(-distance / 10)); // exponential decay past 10 miles
     total += distanceScore;
-    breakdown.push({ category: 'distance', points: Math.round(distanceScore) });
+    breakdown.push({ category: 'distance', points: distanceScore, miles: distance.toFixed(2)});
 
     // 4. Rating (25 pts)
-    const ratingScore = Math.round((restaurant.rating / 5) * 25); // Scale rating to 25 pts
+    const ratingScore = Math.round(((restaurant.rating || 0) / 5) * 25); // Scale rating to 25 pts
     total += ratingScore;
     breakdown.push({ category: 'rating', points: ratingScore });
 
@@ -41,29 +41,62 @@ function calculateScore(restaurant, preferences) {
 
 // Checks if a restaurant passes hard constraints
 function passesHardConstraints(restaurant, preferences) {
-    
-    // 1. Dietary restrictions
-    if (preferences.dietaryRestrictions && preferences.dietaryRestrictions.length > 0) {
-        const restaurantOptions = restaurant.dietary_options || [];
-        const hasAllDietary = preferences.dietaryRestrictions.every(restriction =>
-            restaurantOptions.includes(restriction)
-        );
-        if (!hasAllDietary) return false;
+    const restriction = preferences.dietaryRestrictions; // vegan or vegetarian
+
+    if (!restriction || restriction.length === 0) { // no restrictions
+        return true;
     }
 
-    // 2. Allergy considerations
-    if (preferences.allergies && preferences.allergies.length > 0) {
-        const restaurantAllergens = restaurant.allergens || [];
-        const hasAllergens = preferences.allergies.some(allergy =>
-            restaurantAllergens.includes(allergy)
-        );
-        if (hasAllergens) return false;
+    if (restriction === 'vegan') {
+        return restaurant.cuisine === 'vegan';
+    }
+
+    if (restriction === 'vegetarian') {
+        return restaurant.servesVegetarianFood === true || restaurant.cuisine === 'vegan';
     }
 
     return true;
 }
 
+// Groups all user preferences into single preference object
+function aggregateGroupPreferences(users) {
+    if (!users || users.length === 0) {
+        throw new Error('No users provided for preference aggregation');
+    }
+
+    const allCuisines = [...new Set(users.flatMap(u => u.cuisines || []))];
+    const maxBudget = Math.min(...users.map(u => u.maxBudget ?? 4));
+
+    let dietaryRestrictions = null;
+    for (const user of users) {
+        if (user.dietaryRestrictions === 'vegan') {
+            dietaryRestrictions = 'vegan';
+            break;
+        }
+        if (user.dietaryRestrictions === 'vegetarian') {
+            dietaryRestrictions = 'vegetarian';
+        }
+    }
+
+    const location = users.reduce((acc, user) => {
+        acc.latitude += user.location.latitude;
+        acc.longitude += user.location.longitude;
+        return acc;
+    }, { latitude: 0, longitude: 0 });
+
+    location.latitude /= users.length;
+    location.longitude /= users.length;
+
+    return {
+        cuisines: allCuisines,
+        maxBudget,
+        dietaryRestrictions,
+        location
+    };
+}
+
 module.exports = {
     calculateScore,
-    passesHardConstraints
+    passesHardConstraints,
+    aggregateGroupPreferences
 };

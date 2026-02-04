@@ -9,7 +9,14 @@ CREATE TABLE restaurants (
     address TEXT,
     phone TEXT,
     hours TEXT,
-    dietary_options TEXT,  -- e.g. ['vegetarian', 'vegan', 'gluten-free']
-    allergens TEXT,        -- e.g. ['nuts', 'dairy']
+    dietary_options TEXT,  -- ONLY ['vegetarian', 'vegan']
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+-- cache for API responses
+CREATE TABLE restaurant_cache (
+    place_id TEXT PRIMARY KEY,
+    data TEXT,
+    cached_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    expires_at DATETIME
 );
