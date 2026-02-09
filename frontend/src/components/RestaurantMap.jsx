@@ -23,16 +23,27 @@ const createMarkerIcon = (number, isSelected) => {
 };
 
 // Map controller component for programmatic view changes
-function MapController({ center, zoom }) {
+// Map controller to fit all markers
+function MapController({ center, restaurants }) {
   const map = useMap();
   
   useEffect(() => {
-    if (center) {
-      map.flyTo([center.lat, center.lng], zoom, {
-        duration: 0.8,
-      });
+    if (!map) return;
+
+    if (restaurants.length > 0) {
+      // 1. Create bounds that include all restaurant locations
+      const bounds = L.latLngBounds(restaurants.map(r => [r.location.lat, r.location.lng]));
+      
+      // 2. Also include the user center/home base
+      bounds.extend([center.lat, center.lng]);
+
+      // 3. Fly to fit those bounds (with some padding)
+      map.flyToBounds(bounds, { padding: [50, 50], duration: 1.5 });
+    } else {
+      // Fallback: If no restaurants, just go to center
+      map.flyTo([center.lat, center.lng], 14, { duration: 0.8 });
     }
-  }, [map, center, zoom]);
+  }, [map, center, restaurants]);
   
   return null;
 }
@@ -135,7 +146,7 @@ function RestaurantMap({ restaurants, center, selectedId, onSelectRestaurant }) 
         url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
       />
       
-      <MapController center={center} zoom={14} />
+      <MapController center={center} restaurants={restaurants} />
       
       {restaurants.map((restaurant, index) => (
         <RestaurantMarker

@@ -5,7 +5,7 @@ const recommendationsService = require('../services/recommendations');
 // POST /api/recommendations
 router.post('/', async (req, res) => {
     try {
-        const { users, location, radius } = req.body;
+        const { users, location, radius, forceRefresh} = req.body;
 
         // Basic validation
         if (!users || !Array.isArray(users) || users.length === 0) {
@@ -17,7 +17,7 @@ router.post('/', async (req, res) => {
         }
 
         // Call the service
-        const results = await recommendationsService.getRecommendations(users, location, radius);
+        const results = await recommendationsService.getRecommendations(users, location, radius, forceRefresh);
 
         res.json({
             success: true,

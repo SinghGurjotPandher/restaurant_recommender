@@ -5,7 +5,7 @@ const scoring = require('./scoring');
 const googlePlaces = new GooglePlacesAPI();
 
 // Main function to get recommendations
-async function getRecommendations(users, userLocation, radius = 2000) {
+async function getRecommendations(users, userLocation, radius = 2000, forceRefresh = false) {
     try {
         // 1. Aggregate group preferences (using your scoring.js helper)
         const groupPrefs = scoring.aggregateGroupPreferences(users);
@@ -18,19 +18,25 @@ async function getRecommendations(users, userLocation, radius = 2000) {
             groupPrefs.location = { latitude: userLocation.lat, longitude: userLocation.lng };
         }
 
+        // Convert radius (meters) to degrees for the database search
+        const degreeDiff = (radius / 111000) * 1.2;
+        // Ensure minimum box size (e.g. 0.05) so we don't search 0.0 area
+        const searchBox = Math.max(degreeDiff, 0.05);
+
         // 2. Check Cache: Get restaurants within a rough box of the location
         // (Simplified for SQLite: just getting all and filtering in JS for this prototype)
         // In a real app, you'd use spatial SQL, but this is fine for a class project.
-        const cachedRestaurants = await db.query(
-            `SELECT * FROM restaurant_cache 
-             WHERE abs(latitude - ?) < 0.1 AND abs(longitude - ?) < 0.1`,
-            [center.lat, center.lng]
-        );
-
-        let restaurants = cachedRestaurants;
+        let restaurants = []; // IF forceRefresh is true, we pretend the cache is empty
+        if (!forceRefresh) {
+            restaurants = await db.query(
+                `SELECT * FROM restaurant_cache 
+                 WHERE abs(latitude - ?) < ? AND abs(longitude - ?) < ?`,
+                [center.lat, searchBox, center.lng, searchBox]
+            );
+        }
 
         // 3. Cache Miss Strategy: If we have too few results, hit Google API
-        if (restaurants.length < 5) {
+        if (restaurants.length < 5 || forceRefresh) {
             console.log('Cache miss or low results. Fetching from Google Places...');
             const apiResults = await googlePlaces.nearbySearch(center.lat, center.lng, radius);
 
@@ -42,8 +48,8 @@ async function getRecommendations(users, userLocation, radius = 2000) {
             // Re-fetch combined list
             restaurants = await db.query(
                 `SELECT * FROM restaurant_cache 
-                 WHERE abs(latitude - ?) < 0.1 AND abs(longitude - ?) < 0.1`,
-                [center.lat, center.lng]
+                 WHERE abs(latitude - ?) < ? AND abs(longitude - ?) < ?`,
+                [center.lat, searchBox, center.lng, searchBox]
             );
         }
 
@@ -53,11 +59,11 @@ async function getRecommendations(users, userLocation, radius = 2000) {
                 // normalize DB columns to match scoring expectation if needed
                 const restaurantObj = {
                     ...r,
+                    googlePlaceId: r.google_place_id,                     
                     cuisine: r.cuisine,
                     priceLevel: r.price_level,
                     servesVegetarianFood: r.serves_vegetarian_food
                 };
-
                 // Check hard constraints
                 if (!scoring.passesHardConstraints(restaurantObj, groupPrefs)) {
                     return null;

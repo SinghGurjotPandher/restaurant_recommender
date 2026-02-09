@@ -35,4 +35,10 @@ Frontend:
 
 **Gurjot**:
 
-- Contribution 1
+- Implemented Real-Time Multiplayer Architecture: Built the Socket.io infrastructure to allow users to create/join lobbies and sync data across devices in real-time.
+
+- Built Dynamic Radius Control: Added frontend controls and backend logic to handle variable search radii (1km - 50km) with API safety caps.
+
+- Developed Live Voting System: Created the "Heart" feature, allowing groups to vote on restaurants with instant updates across all screens.
+
+- Integrated Interactive Map: Added Leaflet maps with custom markers and auto-zoom bounds to visualize search results.

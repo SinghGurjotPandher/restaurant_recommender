@@ -27,7 +27,7 @@ class GooglePlacesAPI {
     // nearby search endpoint
     async nearbySearch(lat, lng, radius = 5000) {
         await this.waitForRateLimit();
-
+        const safeRadius = Math.min(radius, 50000);
         try {
             const response = await axios.post(
                 `${this.baseUrl}/places:searchNearby`,
@@ -37,7 +37,7 @@ class GooglePlacesAPI {
                     locationRestriction: {
                         circle: {
                             center: { latitude: lat, longitude: lng },
-                            radius: radius
+                            radius: safeRadius
                         }
                     }
                 },
