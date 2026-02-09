@@ -5,9 +5,9 @@ Backend:
 - [x] Database initialization
 - [x] Scoring function
 - [x] Google Places API connection
-- [ ] SQLite caching layer: cache API results, update stale results, fetch from DB
+- [x] SQLite caching layer: cache API results, update stale results, fetch from DB
 - [ ] Core central recommendation system: aggregate group -> fetch restaurants -> filter -> score -> sort/rank -> return
-- [ ] API route to core: allows frontend to talk to our core central recommendation system
+- [x] API route to core: allows frontend to talk to our core central recommendation system
 
 Frontend:
 
@@ -28,7 +28,10 @@ Frontend:
 
 **David**:
 
-- Contribution 1
+- initialize SQLite database connection in services/database.js
+- Implement recommendations logic in services/recommendations.js
+- Add POST /api/recommendations route for handling frontend requests
+- Refactored googlePlace.js to correct field names
 
 **Gurjot**:
 
