@@ -41,7 +41,7 @@ function calculateScore(restaurant, preferences) {
 
 // Checks if a restaurant passes hard constraints
 function passesHardConstraints(restaurant, preferences) {
-    const restriction = preferences.dietaryRestriction; // vegan or vegetarian
+    const restriction = preferences.dietaryRestriction ?? preferences.dietaryRestrictions; // vegan or vegetarian
 
     if (!restriction) { // no restrictions
         return true;
@@ -78,15 +78,20 @@ function aggregateGroupPreferences(users) {
         }
     }
 
-    // location is average of all users
-    const location = users.reduce((acc, user) => {
-        acc.latitude += user.location.latitude;
-        acc.longitude += user.location.longitude;
-        return acc;
-    }, { latitude: 0, longitude: 0 });
+    // location is average of all users with a provided location
+    const usersWithLocation = users.filter(u => u?.location?.latitude != null && u?.location?.longitude != null);
+    const location = usersWithLocation.length > 0
+        ? usersWithLocation.reduce((acc, user) => {
+            acc.latitude += user.location.latitude;
+            acc.longitude += user.location.longitude;
+            return acc;
+        }, { latitude: 0, longitude: 0 })
+        : null;
 
-    location.latitude /= users.length;
-    location.longitude /= users.length;
+    if (location) {
+        location.latitude /= usersWithLocation.length;
+        location.longitude /= usersWithLocation.length;
+    }
 
     return {
         cuisines: allCuisines,

@@ -33,11 +33,11 @@ class GooglePlacesAPI {
                 `${this.baseUrl}/places:searchNearby`,
                 {
                     includedTypes: ['restaurant'],
-                    maxResults: 20,
+                    maxResultCount: 20,
                     locationRestriction: {
                         circle: {
                             center: { latitude: lat, longitude: lng },
-                            radiusMeters: radius
+                            radius: radius
                         }
                     }
                 },
@@ -54,9 +54,7 @@ class GooglePlacesAPI {
                             'places.location',
                             'places.rating',
                             'places.userRatingCount',
-                            'places.priceLevel',
-                            'places.servesVegetarianFood',
-                            'places.websiteUri'
+                            'places.priceLevel'
                         ].join(','),
                     },
                     timeout: 15000
@@ -65,7 +63,8 @@ class GooglePlacesAPI {
 
             return (response.data.places || []).map(place => this.formatPlace(place));
         } catch (error) {
-            console.error(`Failed to perform nearby search: ${error.message}`);
+            const details = error.response?.data ? ` ${JSON.stringify(error.response.data)}` : '';
+            console.error(`Failed to perform nearby search: ${error.message}${details}`);
             return [];
         }
     }
