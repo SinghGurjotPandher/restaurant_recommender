@@ -20,9 +20,6 @@ const DIETARY_OPTIONS = [
   { value: '', label: 'No restrictions' },
   { value: 'vegetarian', label: 'Vegetarian' },
   { value: 'vegan', label: 'Vegan' },
-  { value: 'halal', label: 'Halal' },
-  { value: 'kosher', label: 'Kosher' },
-  { value: 'gluten-free', label: 'Gluten-Free' },
 ];
 
 const BUDGET_LABELS = ['$', '$$', '$$$', '$$$$'];
