@@ -1,3 +1,11 @@
+-- Store the core authentication details
+CREATE TABLE IF NOT EXISTS users (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    email TEXT UNIQUE NOT NULL,
+    password_hash TEXT NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
 -- stores Google Places API restaurant data
 CREATE TABLE IF NOT EXISTS restaurant_cache (
     google_place_id TEXT PRIMARY KEY,
