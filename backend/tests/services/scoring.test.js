@@ -11,6 +11,7 @@ describe('calculateScore', () => {
 
     const basePreferences = {
         cuisines: ['Italian', 'Mexican'],
+        cuisineWeights: { 'Italian': 1.0, 'Mexican': 1.0 },
         maxBudget: 2,
         location: { latitude: 33.6846, longitude: -117.8265 }
     };

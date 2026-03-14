@@ -1,4 +1,4 @@
-import { useState, useCallback, memo } from 'react';
+import { useState, useCallback, useEffect, memo } from 'react';
 import { UserPlus, MapPin, Loader2, CheckCircle2, XCircle } from 'lucide-react';
 
 const CUISINES = [
@@ -24,11 +24,18 @@ const DIETARY_OPTIONS = [
 
 const BUDGET_LABELS = ['$', '$$', '$$$', '$$$$'];
 
-function PreferenceForm({ onAddUser, location, locationStatus, onRequestLocation }) {
+function PreferenceForm({ onAddUser, location, locationStatus, onRequestLocation, loggedInUser }) {
   const [name, setName] = useState('');
   const [cuisines, setCuisines] = useState([]);
   const [budget, setBudget] = useState(2);
   const [dietary, setDietary] = useState('');
+
+  // Auto-fill name from logged-in user's display name
+  useEffect(() => {
+    if (loggedInUser?.displayName && !name) {
+      setName(loggedInUser.displayName);
+    }
+  }, [loggedInUser]);
 
   // Toggle cuisine selection
   const toggleCuisine = useCallback((cuisine) => {

@@ -6,11 +6,17 @@ import GroupPanel from './components/GroupPanel';
 import RestaurantList from './components/RestaurantList';
 import RestaurantMap from './components/RestaurantMap';
 import Lobby from './components/Lobby';
+import AuthDropdown from './components/AuthDropdown';
 import socket from './socket';
 
+const API_URL = 'http://localhost:3001';
 const DEFAULT_CENTER = { lat: 33.6405, lng: -117.8443 };
 
 function App() {
+  // Auth state
+  const [authToken, setAuthToken] = useState(() => localStorage.getItem('authToken'));
+  const [authUser, setAuthUser] = useState(null);
+
   // Session State
   const [sessionCode, setSessionCode] = useState(null);
 
@@ -32,6 +38,41 @@ function App() {
 
   // Voting
   const [votes, setVotes] = useState({});
+
+  // --- AUTH: verify stored token on mount ---
+  useEffect(() => {
+    if (!authToken) return;
+    axios.get(`${API_URL}/api/auth/me`, {
+      headers: { Authorization: `Bearer ${authToken}` }
+    })
+    .then(res => setAuthUser(res.data.user))
+    .catch(() => {
+      // Token expired or invalid
+      localStorage.removeItem('authToken');
+      setAuthToken(null);
+      setAuthUser(null);
+    });
+  }, [authToken]);
+
+  const handleLogin = useCallback(async (email, password) => {
+    const res = await axios.post(`${API_URL}/api/auth/login`, { email, password });
+    localStorage.setItem('authToken', res.data.token);
+    setAuthToken(res.data.token);
+    setAuthUser(res.data.user);
+  }, []);
+
+  const handleRegister = useCallback(async (email, password, displayName) => {
+    const res = await axios.post(`${API_URL}/api/auth/register`, { email, password, displayName });
+    localStorage.setItem('authToken', res.data.token);
+    setAuthToken(res.data.token);
+    setAuthUser(res.data.user);
+  }, []);
+
+  const handleLogout = useCallback(() => {
+    localStorage.removeItem('authToken');
+    setAuthToken(null);
+    setAuthUser(null);
+  }, []);
 
   // --- SOCKET.IO EFFECTS ---
   useEffect(() => {
@@ -81,7 +122,8 @@ function App() {
     if (sessionCode) {
       const userPayload = { 
         code: sessionCode, 
-        user: { ...userData, id: socket.id }
+        user: { ...userData, id: socket.id },
+        authToken: authToken || undefined
       };
       
       if (editingData) {
@@ -95,7 +137,7 @@ function App() {
     
     setEditingData(null);
     setError(null);
-  }, [sessionCode, users, editingData]);
+  }, [sessionCode, users, editingData, authToken]);
 
   const handleEditUser = useCallback((user) => {
     if (sessionCode && user.id !== socket.id) {
@@ -167,12 +209,18 @@ function App() {
     setSelectedRestaurant(null);
 
     try {
-      const response = await axios.post('http://localhost:3000/api/recommendations', {
+      const headers = {};
+      if (authToken) {
+        headers['Authorization'] = `Bearer ${authToken}`;
+      }
+
+      const response = await axios.post(`${API_URL}/api/recommendations`, {
         users,
         location: searchLocation,
         radius: radius,
-        forceRefresh: radiusChanged
-      });
+        forceRefresh: radiusChanged,
+        sessionCode: sessionCode || undefined
+      }, { headers });
 
       const newRecommendations = response.data.recommendations || [];
       setRecommendations(newRecommendations);
@@ -194,7 +242,7 @@ function App() {
     } finally {
       setLoading(false);
     }
-  }, [users, location, radius, radiusChanged, sessionCode]);
+  }, [users, location, radius, radiusChanged, sessionCode, authToken]);
 
   const mapCenter = useMemo(() => {
     if (recommendations.length > 0) {
@@ -213,7 +261,12 @@ function App() {
             <div className="logo-mark"><UtensilsCrossed strokeWidth={2.5} /></div>
             <h1>Dev<span>Dinners</span></h1>
           </div>
-          <span className="tagline">Real-Time Group Dining</span>
+          <AuthDropdown
+            user={authUser}
+            onLogin={handleLogin}
+            onRegister={handleRegister}
+            onLogout={handleLogout}
+          />
         </div>
       </header>
 
@@ -247,6 +300,7 @@ function App() {
               locationStatus={locationStatus}
               onRequestLocation={requestLocation}
               editData={editingData}
+              loggedInUser={authUser}
             />
 
             {users.length > 0 && (

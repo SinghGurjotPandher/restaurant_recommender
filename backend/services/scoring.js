@@ -1,15 +1,18 @@
 const { haversineDistance } = require('../utils/distance');
 
+// How much historical preferences contribute (0-1). At 0.5, history can give max 12.5 of 25 cuisine pts.
+const HISTORY_FACTOR = 0.5;
+
 // Calculates score for a restaurant based on user preferences
 function calculateScore(restaurant, preferences) {
     let total = 0;
     const breakdown = [];
 
-    // 1. Cuisine match (25 pts)
-    const cuisineScore = preferences.cuisines.includes(restaurant.cuisine) ? 25 : 0;
+    // 1. Cuisine match (25 pts) — weighted by cuisineWeights map
+    const cuisineWeight = (preferences.cuisineWeights && preferences.cuisineWeights[restaurant.cuisine]) || 0;
+    const cuisineScore = Math.round(cuisineWeight * 25);
     total += cuisineScore || 0;
     breakdown.push({ category: 'cuisine', points: cuisineScore || 0 });
-    //console.log('Cuisine Score:', cuisineScore);
 
     // 2. Budget fit (25 pts) (0-4 scale)
     const budgetDifference = Math.abs(restaurant.priceLevel - preferences.maxBudget);
@@ -59,13 +62,28 @@ function passesHardConstraints(restaurant, preferences) {
 }
 
 // Groups all user preferences into single preference object
-function aggregateGroupPreferences(users) {
+// historicalWeights is an optional { cuisine: weight(0-1) } map from user history
+function aggregateGroupPreferences(users, historicalWeights) {
     if (!users || users.length === 0) {
         throw new Error('At least one user is required to aggregate preferences.');
     }
 
     const allCuisines = [...new Set(users.flatMap(u => u.cuisines || []))];
     const maxBudget = Math.min(...users.map(u => u.maxBudget ?? 4));
+
+    // Build cuisineWeights: explicit selections = 1.0, historical = normalized * HISTORY_FACTOR
+    const cuisineWeights = {};
+    // Explicit selections get full weight
+    for (const cuisine of allCuisines) {
+        cuisineWeights[cuisine] = 1.0;
+    }
+    // Merge historical weights (only if they exceed what's already there)
+    if (historicalWeights) {
+        for (const [cuisine, weight] of Object.entries(historicalWeights)) {
+            const historicalScore = weight * HISTORY_FACTOR;
+            cuisineWeights[cuisine] = Math.max(cuisineWeights[cuisine] || 0, historicalScore);
+        }
+    }
 
     let dietaryRestrictions = 'none';
     for (const user of users) {
@@ -95,6 +113,7 @@ function aggregateGroupPreferences(users) {
 
     return {
         cuisines: allCuisines,
+        cuisineWeights,
         maxBudget,
         dietaryRestrictions,
         location

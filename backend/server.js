@@ -3,6 +3,7 @@ const cors = require('cors');
 const http = require('http');
 const { Server } = require("socket.io");
 const path = require('path');
+const jwt = require('jsonwebtoken');
 const authRoutes = require('./routes/auth');
 require('dotenv').config();
 const app = express();
@@ -21,12 +22,15 @@ app.use('/api/auth', authRoutes);
 // Database
 const db = require('./services/database'); 
 
+// --- SOCKET.IO LOGIC ---
+const sessions = {};
+
+// Expose sessions to Express routes (for recommendations to look up authenticated group members)
+app.set('sessions', sessions);
+
 // Routes
 const recommendationsRouter = require('./routes/recommendations');
 app.use('/api/recommendations', recommendationsRouter);
-
-// --- SOCKET.IO LOGIC ---
-const sessions = {};
 
 io.on('connection', (socket) => {
     console.log('User connected:', socket.id);
@@ -44,13 +48,21 @@ io.on('connection', (socket) => {
     });
 
     // 2. User joins a session
-    socket.on('join_session', ({ code, user }) => {
+    socket.on('join_session', ({ code, user, authToken }) => {
         const roomCode = code.toUpperCase();
         if (sessions[roomCode]) {
             socket.join(roomCode);
             
-            // Add user to session
-            const newUser = { ...user, id: socket.id }; // Use socket ID as distinct ID
+            // Add user to session, with optional userId from JWT
+            const newUser = { ...user, id: socket.id };
+            if (authToken) {
+                try {
+                    const decoded = jwt.verify(authToken, process.env.JWT_SECRET);
+                    newUser.userId = decoded.id;
+                } catch {
+                    // Invalid token — continue as anonymous
+                }
+            }
             sessions[roomCode].push(newUser);
 
             // Broadcast updated user list to everyone in the room

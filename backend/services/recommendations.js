@@ -5,10 +5,10 @@ const scoring = require('./scoring');
 const googlePlaces = new GooglePlacesAPI();
 
 // Main function to get recommendations
-async function getRecommendations(users, userLocation, radius = 2000, forceRefresh = false) {
+async function getRecommendations(users, userLocation, radius = 2000, forceRefresh = false, historicalWeights = null) {
     try {
         // 1. Aggregate group preferences (using your scoring.js helper)
-        const groupPrefs = scoring.aggregateGroupPreferences(users);
+        const groupPrefs = scoring.aggregateGroupPreferences(users, historicalWeights);
 
         // Ensure we have a valid location (use group center if provided, else fallback)
         const center = userLocation || groupPrefs.location;
