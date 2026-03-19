@@ -16,10 +16,23 @@ function calculateScore(restaurant, preferences) {
 
     // 2. Budget fit (25 pts) (0-4 scale)
     const budgetDifference = Math.abs(restaurant.priceLevel - preferences.maxBudget);
-    const budgetScore = Math.max(0, 25 - (budgetDifference * 10)); // -10 pts for each level difference
+    let budgetScore = 0;
+    //console.log('Users max budget:', preferences.maxBudget, 'Restaurant price level:', restaurant.priceLevel);
+
+    if(restaurant.priceLevel > preferences.maxBudget) { // restaurant is more expensive than user's max budget
+        if(budgetDifference >= 2) {
+            budgetScore = 0;
+        } else {
+            budgetScore = 7.5;
+        }
+    } else {
+        //console.log(restaurant.name + ' Budget difference:', budgetDifference);
+        budgetScore = 25;
+    }
+
     total += budgetScore || 0;
     breakdown.push({ category: 'budget', points: budgetScore || 0 });
-    //console.log('Budget Score:', budgetScore);  
+    console.log(restaurant.name + ' Budget Score:', budgetScore);  
 
     // 3. Distance (25 pts)
     const distance = haversineDistance(
@@ -37,7 +50,7 @@ function calculateScore(restaurant, preferences) {
     const ratingScore = Math.round(((restaurant.rating || 0) / 5) * 25); // Scale rating to 25 pts
     total += ratingScore || 0;
     breakdown.push({ category: 'rating', points: ratingScore || 0 });
-    //console.log('Rating Score:', ratingScore);
+    console.log(restaurant.name + ' Rating Score:', ratingScore);
 
     return { total, breakdown };
 }
@@ -69,7 +82,7 @@ function aggregateGroupPreferences(users, historicalWeights) {
     }
 
     const allCuisines = [...new Set(users.flatMap(u => u.cuisines || []))];
-    const maxBudget = Math.min(...users.map(u => u.maxBudget ?? 4));
+    const maxBudget = Math.min(...users.map(u => u.maxBudget ?? u.budget ?? 4));
 
     // Build cuisineWeights: explicit selections = 1.0, historical = normalized * HISTORY_FACTOR
     const cuisineWeights = {};
